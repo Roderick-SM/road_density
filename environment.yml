@@ -1,0 +1,17 @@
+name: road_density
+channels:
+  - conda-forge
+dependencies:
+  - python>=3.10
+  - geopandas
+  - pyproj
+  - shapely
+  - xarray
+  - rioxarray
+  - tqdm
+  - numpy
+  - pandas
+  - netcdf4
+  - gdal
+  - fiona
+  - matplotlib

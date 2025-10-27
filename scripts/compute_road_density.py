@@ -11,9 +11,9 @@ import geopandas as gpd  # type: ignore[import]
 import numpy as np
 import xarray as xr  # type: ignore[import]
 from pyproj import Geod
-from tqdm import tqdm
+from tqdm import tqdm  # type: ignore[import]
 
-from scripts.utils.grid_tools import area_geodesic_km2, generate_latlon_grid
+from scripts.utils.grid_tools import area_geodesic_km2, generate_latlon_grid, snap_bounds
 
 LOGGER = logging.getLogger(__name__)
 if not LOGGER.handlers:
@@ -23,8 +23,6 @@ if not LOGGER.handlers:
     )
     LOGGER.addHandler(handler)
 LOGGER.setLevel(logging.INFO)
-
-_RESOLUTIONS = {0.005, 0.01, 0.05, 0.1}
 
 
 def _prepare_geodataframe(path: Path) -> gpd.GeoDataFrame:
@@ -85,6 +83,7 @@ def compute_road_density(
     res_deg: float,
     out_prefix: str,
     output_dir: str = "./data/outputs",
+    snap_to_resolution: bool = True,
 ) -> Tuple[Path, Path]:
     """Compute road network density on a regular latitude–longitude grid.
 
@@ -100,6 +99,9 @@ def compute_road_density(
         Prefix for all output filenames.
     output_dir : str, optional
         Directory where outputs will be written, by default "./data/outputs".
+    snap_to_resolution : bool, optional
+        Whether to align bounds to multiples of the resolution to prevent floating-point
+        mismatches, by default ``True``.
 
     Returns
     -------
@@ -108,13 +110,6 @@ def compute_road_density(
     """
     if res_deg <= 0:
         raise ValueError("Resolution must be strictly positive.")
-
-    if res_deg not in _RESOLUTIONS:
-        LOGGER.warning(
-            "Resolution %.4f not in recommended set %s; computation will proceed.",
-            res_deg,
-            sorted(_RESOLUTIONS),
-        )
 
     roads_path = Path(path_roads)
     region_path = Path(path_region)
@@ -146,26 +141,25 @@ def compute_road_density(
         roads_clipped = roads_clipped.explode(index_parts=False).reset_index(drop=True)
 
         minx, miny, maxx, maxy = region_union.bounds
-        min_lon = np.floor(minx / res_deg) * res_deg
-        min_lat = np.floor(miny / res_deg) * res_deg
-        max_lon = np.ceil(maxx / res_deg) * res_deg
-        max_lat = np.ceil(maxy / res_deg) * res_deg
-        bounds = (min_lon, min_lat, max_lon, max_lat)
+        raw_bounds = (minx, miny, maxx, maxy)
+        if snap_to_resolution:
+            bounds = snap_bounds(raw_bounds, res_deg)
+        else:
+            bounds = raw_bounds
+        min_lon, min_lat, max_lon, max_lat = bounds
 
         LOGGER.info("Generating base grid covering %.4f° to %.4f°, %.4f° to %.4f°.", *bounds)
         grid = generate_latlon_grid(bounds, res_deg)
         grid = grid.reset_index(drop=True)
 
-        n_lon = int(round((max_lon - min_lon) / res_deg))
-        n_lat = int(round((max_lat - min_lat) / res_deg))
-        if len(grid) != n_lon * n_lat:
-            raise RuntimeError("Generated grid size does not match expected dimensions.")
+        lon_edges = np.arange(min_lon, max_lon + res_deg, res_deg)
+        lat_edges = np.arange(min_lat, max_lat + res_deg, res_deg)
+        n_lon = len(lon_edges) - 1
+        n_lat = len(lat_edges) - 1
 
         grid["lon_idx"] = grid["cell_id"] // n_lat
         grid["lat_idx"] = grid["cell_id"] % n_lat
 
-        lon_edges = np.arange(min_lon, max_lon + res_deg, res_deg)
-        lat_edges = np.arange(min_lat, max_lat + res_deg, res_deg)
         lon_centers = lon_edges[:-1] + res_deg / 2.0
         lat_centers = lat_edges[:-1] + res_deg / 2.0
 

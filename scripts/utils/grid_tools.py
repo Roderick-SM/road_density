@@ -7,8 +7,20 @@ from typing import Tuple
 import geopandas as gpd  # type: ignore[import]
 import numpy as np
 from pyproj import Geod
-from shapely.geometry import Polygon
-from shapely.geometry.base import BaseGeometry
+from shapely.geometry import Polygon  # type: ignore[import]
+from shapely.geometry.base import BaseGeometry  # type: ignore[import]
+
+
+def snap_bounds(bounds: Tuple[float, float, float, float], res: float) -> Tuple[float, float, float, float]:
+    """Snap bounds to the nearest multiple of the resolution to avoid rounding mismatches."""
+    from math import ceil, floor
+
+    minx, miny, maxx, maxy = bounds
+    minx = floor(minx / res) * res
+    miny = floor(miny / res) * res
+    maxx = ceil(maxx / res) * res
+    maxy = ceil(maxy / res) * res
+    return (minx, miny, maxx, maxy)
 
 
 def generate_latlon_grid(bounds: Tuple[float, float, float, float], res_deg: float) -> gpd.GeoDataFrame:

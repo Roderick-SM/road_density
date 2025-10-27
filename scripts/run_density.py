@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import argparse
 import logging
-import sys
 
 from scripts.compute_road_density import compute_road_density
 
@@ -52,6 +51,11 @@ def _parse_args() -> argparse.Namespace:
         choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
         help="Console logging level (default: INFO).",
     )
+    parser.add_argument(
+        "--no-snap",
+        action="store_true",
+        help="Disable snapping bounds to the resolution grid.",
+    )
     return parser.parse_args()
 
 
@@ -77,6 +81,7 @@ def main() -> None:
             res_deg=args.res,
             out_prefix=args.prefix,
             output_dir=args.output_dir,
+            snap_to_resolution=not args.no_snap,
         )
     except Exception as exc:  # noqa: BLE001
         logging.getLogger(__name__).exception("Road density computation failed: %s", exc)

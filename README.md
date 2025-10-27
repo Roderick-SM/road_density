@@ -23,8 +23,9 @@ This repository computes road network density (km/km²) on regular latitude–lo
        --roads data/inputs/roads_input.gpkg \
        --region data/inputs/region_mask.shp \
        --res 0.01 \
-       --prefix MyRegion_Roads
+        --prefix MyRegion_Roads
    ```
+   Add `--no-snap` if the supplied bounds are already aligned and you prefer exact extents.
 4. Review outputs in `data/outputs/` (GeoPackage, NetCDF, and logs).
 
 ## Python API Example
